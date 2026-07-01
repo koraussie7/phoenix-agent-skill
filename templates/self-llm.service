@@ -1,0 +1,17 @@
+[Unit]
+Description=Phoenix Self-LLM for AGENT_NAME — autonomous local LLM fallback
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/phoenix-self-llm/self_llm_AGENT_NAME.py --mode auto
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+CPUQuota=30%
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

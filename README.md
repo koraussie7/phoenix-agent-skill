@@ -2,10 +2,12 @@
 
 Turn any agent, bot, or process into an **immortal phoenix** — a self-healing daemon with:
 
-- **3-layer defense**: systemd (boot) → watchdog (alive check) → link (cross-server)
+- **4-layer defense**: systemd → watchdog → cross-server link → **autonomous local LLM**
+- **Self-generating LLM**: when external APIs die, deploys a local Ollama model automatically
 - **Adaptive anomaly detection**: learns normal behavior, adjusts thresholds
 - **Self-improving memory**: tracks death causes, fix success rates
 - **Automatic resurrection**: agent dies → watchdog detects → restarts in <30s
+- **API-outage survival**: external → local LLM → degraded → rule-based — NEVER truly down
 
 ## Quick Start
 
@@ -29,9 +31,11 @@ systemctl daemon-reload && systemctl enable my-bot.service phoenix-my-bot.servic
 | `SKILL.md` | Full OpenClaw skill documentation |
 | `templates/phoenix_template.py` | Watchdog daemon template |
 | `templates/link_template.py` | Cross-server resurrection |
+| **`templates/self_llm_template.py`** | **🧠 Autonomous local LLM for API-outage survival** |
 | `templates/agent.service` | systemd unit for agent |
 | `templates/watchdog.service` | systemd unit for watchdog |
 | `templates/link.service` | systemd unit for cross-server link |
+| `templates/self-llm.service` | systemd unit for self-LLM daemon |
 | `templates/setup_watchdog.py` | One-command setup tool |
 
 ## Origin

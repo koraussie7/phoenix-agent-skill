@@ -1,6 +1,6 @@
 ---
 name: phoenix-agent-skill
-description: "🔥 Phoenix Agent — Turn any agent/process into an immortal self-healing daemon with 3-layer defense, ML-based anomaly detection, and cross-server resurrection."
+description: "🔥 Phoenix Agent — Turn any agent/process into an immortal self-healing daemon with 3-layer defense, ML-based anomaly detection, cross-server resurrection, and autonomous local LLM generation for API-outage survival."
 metadata:
   openclaw:
     emoji: "🔥"
@@ -25,32 +25,87 @@ Inspired by the **Hermes Nexus** autopsies (see `hermes-phoenix-mechanism` in Ob
 ## 📐 Architecture
 
 ```
-┌───────────────────────────────────────────┐
-│         PHOENIX AGENT SYSTEM              │
-│                                           │
-│  Layer 3: Cross-Server Link (optional)    │
-│  ┌─────────────────────────────────────┐  │
-│  │ link_<agent>.py   ──  SSH tunnel    │  │
-│  │ Sync: 5min intervals                │  │
-│  └──────────┬──────────────────────────┘  │
-│             │                              │
-│  Layer 2: Phoenix Watchdog (daemon)       │
-│  ┌──────────▼──────────────────────────┐  │
-│  │ phoenix_<agent>.py                  │  │
-│  │ - Sense: every 30-120s              │  │
-│  │ - Think: adaptive thresholds        │  │
-│  │ - Act: auto-restart + cleanup       │  │
-│  │ - Learn: success rate tracking      │  │
-│  └──────────┬──────────────────────────┘  │
-│             │                              │
-│  Layer 1: systemd (foundation)             │
-│  ┌──────────▼──────────────────────────┐  │
-│  │ <agent>.service                     │  │
-│  │ - Restart=always                    │  │
-│  │ - RestartSec=3                      │  │
-│  │ - OOMScoreAdjust=-500               │  │
-│  └─────────────────────────────────────┘  │
-└───────────────────────────────────────────┘
+┌───────────────────────────────────────────────┐
+│           PHOENIX AGENT SYSTEM                │
+│                                               │
+│  Layer 4: Self-LLM (autonomous fallback)      │
+│  ┌─────────────────────────────────────────┐  │
+│  │ self_llm_<agent>.py                    │  │
+│  │ - Detects API outages                   │  │
+│  │ - Deploys local Ollama + tiny model     │  │
+│  │ - CPU-friendly, 1GB RAM minimum         │  │
+│  │ - Graceful degredation:                 │  │
+│  │   external → local → degraded → survival│  │
+│  │ - Self-heals crashed LLM                │  │
+│  └────────────────┬────────────────────────┘  │
+│                   │                            │
+│  Layer 3: Cross-Server Link (optional)        │
+│  ┌────────────────▼────────────────────────┐  │
+│  │ link_<agent>.py   ──  SSH tunnel        │  │
+│  │ Sync: 5min intervals                    │  │
+│  └──────────┬──────────────────────────────┘  │
+│             │                                  │
+│  Layer 2: Phoenix Watchdog (daemon)           │
+│  ┌──────────▼──────────────────────────────┐  │
+│  │ phoenix_<agent>.py                      │  │
+│  │ - Sense: every 30-120s                  │  │
+│  │ - Think: adaptive thresholds            │  │
+│  │ - Act: auto-restart + cleanup           │  │
+│  │ - Learn: success rate tracking          │  │
+│  └──────────┬──────────────────────────────┘  │
+│             │                                  │
+│  Layer 1: systemd (foundation)                 │
+│  ┌──────────▼──────────────────────────────┐  │
+│  │ <agent>.service                         │  │
+│  │ - Restart=always                        │  │
+│  │ - RestartSec=3                          │  │
+│  │ - OOMScoreAdjust=-500                   │  │
+│  └─────────────────────────────────────────┘  │
+└───────────────────────────────────────────────┘
+
+## 🧠 Self-LLM — Agent Survival Layer
+
+The **Self-LLM** component makes agents immune to API outages. When OpenAI/Claude/Gemini goes down, the agent automatically deploys a local LLM and keeps working.
+
+### Degradation Levels
+
+| Level | Score | Description |
+|---|---|---|
+| 🌐 External | 1.0 | Normal — using cloud API |
+| 💻 Local | 0.6 | Local Ollama with best-fit model |
+| ⚠️ Degraded | 0.3 | Tiny model (TinyLlama, 1GB RAM) |
+| 🧟 Survival | 0.1 | Rule-based — no LLM needed |
+
+### How It Works
+
+```
+1. Check all external APIs (5s timeout each)
+2. If ALL are down for 2+ checks → deploy local LLM
+3. Assess resources: RAM, CPU, GPU, disk
+4. Select best model that fits:
+   - molyllama/rwkv-7-g1g:1.5b (2GB, unlimited context, CPU)
+   → tinyllama:latest (1GB, basic)
+   → qwen2.5-coder:1.5b (2GB, 32K context)
+   → dolphin-llama3:8b (8GB, good quality)
+5. Install Ollama if missing (auto-download)
+6. Pull model, verify it works
+7. Route agent's generate() calls to local LLM
+8. Monitor local LLM health — restart if crashed
+9. RESTORE to external API when it comes back
+```
+
+### One-Line Hijack
+
+```python
+from phoenix_self_llm import SelfLLM
+
+@SelfLLM.hijack_api_call
+def call_openai(prompt):
+    # Your normal OpenAI call
+    return openai.ChatCompletion.create(...)
+```
+
+When external API dies, `SelfLLM` automatically intercepts and routes to local. When it comes back, routes back to OpenAI. Zero code changes.
 ```
 
 ## 🧩 Components
@@ -60,8 +115,11 @@ Inspired by the **Hermes Nexus** autopsies (see `hermes-phoenix-mechanism` in Ob
 | 1 | systemd Service | `<agent>.service` | Boot-time auto-start, Restart=always |
 | 2 | Phoenix Watchdog | `phoenix_<agent>.py` | Alive check, auto-restart, adaptive thresholds |
 | 3 | Cross-server Link | `link_<agent>.py` | Multi-server resurrection (optional) |
+| **4** | **Self-LLM** | **`self_llm_<agent>.py`** | **Autonomous local LLM for API-outage survival** |
 | - | Memory Core | `PhoenixMemory` class | JSON-based persistent learning |
+| - | LLM State | `SelfLLM` class | API health checks, model selection, local generation |
 | - | Template | `phoenix_template.py` | Ready-to-edit watchdog stub |
+| - | Template | `self_llm_template.py` | Ready-to-edit self-LLM stub |
 
 ## 🚀 Quick Start
 
