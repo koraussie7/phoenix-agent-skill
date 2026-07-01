@@ -1,0 +1,17 @@
+[Unit]
+Description=Phoenix Watchdog for AGENT_NAME
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/phoenix-watchdog/phoenix_AGENT_NAME.py
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

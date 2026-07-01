@@ -1,0 +1,22 @@
+[Unit]
+Description=AGENT_NAME (Phoenix — Self-Healing Agent)
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=AGENT_CMD
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=5
+OOMScoreAdjust=-500
+StandardOutput=journal
+StandardError=journal
+
+# Optional: resource limits
+# MemoryMax=512M
+# CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
